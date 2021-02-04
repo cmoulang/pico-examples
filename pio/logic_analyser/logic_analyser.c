@@ -23,7 +23,7 @@
 #include "hardware/structs/pwm.h"
 
 const uint CAPTURE_PIN_BASE = 16;
-const uint CAPTURE_PIN_COUNT = 2;
+const uint CAPTURE_PIN_COUNT = 3; // 3 for testing
 const uint CAPTURE_N_SAMPLES = 96;
 
 void logic_analyser_init(PIO pio, uint sm, uint pin_base, uint pin_count, float div) {
@@ -43,7 +43,7 @@ void logic_analyser_init(PIO pio, uint sm, uint pin_base, uint pin_count, float 
     sm_config_set_in_pins(&c, pin_base);
     sm_config_set_wrap(&c, offset, offset);
     sm_config_set_clkdiv(&c, div);
-    sm_config_set_in_shift(&c, true, true, 32);
+    sm_config_set_in_shift(&c, true, true, 32 - (32 % pin_count));
     sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
     pio_sm_init(pio, sm, offset, &c);
 }
@@ -74,11 +74,12 @@ void print_capture_buf(const uint32_t *buf, uint pin_base, uint pin_count, uint3
     // 00: __--__--__--__--__--__--
     // 01: ____----____----____----
     printf("Capture:\n");
+    uint num_bits = 32 - (32 % pin_count);
     for (int pin = 0; pin < pin_count; ++pin) {
         printf("%02d: ", pin + pin_base);
         for (int sample = 0; sample < n_samples; ++sample) {
             uint bit_index = pin + sample * pin_count;
-            bool level = !!(buf[bit_index / 32] & 1u << (bit_index % 32));
+            bool level = !!(buf[bit_index / num_bits] & 1u << (bit_index % num_bits + 32 % pin_count));
             printf(level ? "-" : "_");
         }
         printf("\n");
@@ -89,7 +90,8 @@ int main() {
     stdio_init_all();
     printf("PIO logic analyser example\n");
 
-    uint32_t capture_buf[(CAPTURE_PIN_COUNT * CAPTURE_N_SAMPLES + 31) / 32];
+    uint num_bits = 32 - (32 % CAPTURE_PIN_COUNT);
+    uint32_t capture_buf[(CAPTURE_PIN_COUNT * CAPTURE_N_SAMPLES + num_bits - 1) / num_bits];
 
     PIO pio = pio0;
     uint sm = 0;
@@ -99,7 +101,7 @@ int main() {
 
     printf("Arming trigger\n");
     logic_analyser_arm(pio, sm, dma_chan, capture_buf, //;
-        (CAPTURE_PIN_COUNT * CAPTURE_N_SAMPLES + 31) / 32,
+        (CAPTURE_PIN_COUNT * CAPTURE_N_SAMPLES + num_bits -1 ) / num_bits,
         CAPTURE_PIN_BASE, true);
 
     printf("Starting PWM example\n");
