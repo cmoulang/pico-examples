@@ -23,7 +23,7 @@
 #include "hardware/structs/pwm.h"
 
 const uint CAPTURE_PIN_BASE = 16;
-const uint CAPTURE_PIN_COUNT = 3; // 3 for testing
+const uint CAPTURE_PIN_COUNT = 2;
 const uint CAPTURE_N_SAMPLES = 96;
 
 void logic_analyser_init(PIO pio, uint sm, uint pin_base, uint pin_count, float div) {
